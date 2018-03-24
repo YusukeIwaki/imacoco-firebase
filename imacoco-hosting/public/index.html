@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>imacoco</title>
+
+    <script defer src="/__/firebase/4.12.0/firebase-app.js"></script>
+    <script defer src="/__/firebase/4.12.0/firebase-database.js"></script>
+    <script defer src="/__/firebase/init.js"></script>
+
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+    <script src="https://code.jquery.com/jquery-3.2.1.min.js" integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4=" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
+
+    <style>
+      #gmap {
+        width: 100%;
+        height: 100vh;
+       }
+    </style>
+  </head>
+  <body>
+    <div id="gmap"></div>
+    <script>
+      function initMap() {
+        window.gmap = new google.maps.Map(document.getElementById('gmap'), {
+          zoom: 4,
+          center: { lat: 35.6811673, lng: 139.7670516 },
+          disableDefaultUI: true
+        });
+      }
+    </script>
+    <script async defer src="https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY"></script>
+    <script>
+      document.addEventListener('DOMContentLoaded', function() {
+        const m = document.location.pathname.match(/^\/users\/([a-zA-Z0-9]+)$/);
+        if (m !== null && m[1]) {
+          const uid = m[1];
+          firebase.database().ref(`/public/users/${uid}/last_location`).on('value', snapshot => {
+            const lastLocation = snapshot.val();
+            const center = { lat: lastLocation.latitude, lng: lastLocation.longitude };
+            window.gmap.panTo(center);
+            window.gmap.setZoom(calculateZoom(lastLocation.accuracy));
+            
+            if (!window.circle) {
+              window.circle = new google.maps.Circle({
+                strokeColor: '#007AFF',
+                strokeOpacity: 0.87,
+                strokeWeight: 2,
+                fillColor: '#007AFF',
+                fillOpacity: 0.25,
+                map: window.gmap,
+                center: center,
+                radius: lastLocation.accuracy
+              });
+            } else {
+              window.circle.setCenter(center);
+              window.circle.setRadius(lastLocation.accuracy);
+            }
+          });
+        }
+      });
+      
+      function calculateZoom(accuracy) {
+        const screenSize = Math.min($(window).width(), $(window).height());
+        const requiredMpp =  10 * accuracy/screenSize;
+        const zoomLevel = parseInt(1 + Math.log(40075004 / (256 * requiredMpp)) / Math.log(2), 10);
+
+        if (zoomLevel < 1) return 1;
+        if (zoomLevel > 20) return 20;
+        return zoomLevel;
+      }
+      
+      function requestPositioning() {
+        const m = document.location.pathname.match(/^\/users\/([a-zA-Z0-9]+)$/);
+        if (m !== null && m[1]) {
+          const uid = m[1];
+          $.get("/requestPositioning?uid="+uid)
+            .done(function(data) {
+              //console.log(data);
+            })
+            .fail(function(error) {
+              //console.error(error);
+            });
+        }
+      }
+      
+      requestPositioning();
+      
+      if (new URLSearchParams(document.location.search).get("auto") == "1") {
+        setInterval(function() {
+          requestPositioning();
+        }, 12000);
+      }
+    </script>
+  </body>
+</html>
