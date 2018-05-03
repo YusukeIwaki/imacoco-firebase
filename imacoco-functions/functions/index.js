@@ -38,13 +38,17 @@ function sendPositioningRequestTo(uid, snapshot) {
         return Promise.reject(new Error(`invalid uid: ${uid}`));
     }
 
-    const token = user.fcm_token
+    const token = user.fcm_token;
     const payload = {
         data: {
             push_type: "positioning_request"
         }
-    }
-    return admin.messaging().sendToDevice(token, payload)
+    };
+    const options = {
+        priority: 'high',
+        timeToLive: 300 // 5 min.
+    };
+    return admin.messaging().sendToDevice(token, payload, options)
         .then((response) => {
             console.log("sendToDevice:Response", response);
             
