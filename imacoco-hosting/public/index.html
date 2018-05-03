@@ -31,14 +31,41 @@
           disableDefaultUI: true
         });
       }
+      function findOrCreateById(tag, id, initialFunc) {
+        var el = document.getElementById(id);
+        if (el) {
+          return el;
+        }
+        el = document.createElement(tag);
+        el.id = id;
+        if (typeof initialFunc == "function") {
+          initialFunc(el);
+        }
+        document.body.appendChild(el);
+        return el;
+      }
     </script>
-    <script async defer src="https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY"></script>
+    <script async defer src="https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY&callback=initMap"></script>
     <script>
       document.addEventListener('DOMContentLoaded', function() {
+        const requestPositioningButton = findOrCreateById("button", "requestPositioning", (el) => {
+          el.setAttribute("class", "btn btn-danger");
+          el.style.position = "absolute";
+          el.style.bottom = "0px";
+          el.style.right = "0px";
+          el.style.margin = "10px";
+        });
+        requestPositioningButton.innerText = "request positioning";
+        requestPositioningButton.addEventListener("click", (e) => {
+          requestPositioningButton.setAttribute("disabled", "disabled");
+          requestPositioning();
+        });
+
         const m = document.location.pathname.match(/^\/users\/([a-zA-Z0-9]+)$/);
         if (m !== null && m[1]) {
           const uid = m[1];
           firebase.database().ref(`/public/users/${uid}/last_location`).on('value', snapshot => {
+            requestPositioningButton.removeAttribute("disabled");
             const lastLocation = snapshot.val();
             const center = { lat: lastLocation.latitude, lng: lastLocation.longitude };
             window.gmap.panTo(center);
@@ -59,6 +86,15 @@
               window.circle.setCenter(center);
               window.circle.setRadius(lastLocation.accuracy);
             }
+
+            const floatingDivLeftTop = findOrCreateById("div", "lastUpdatedAt", (el) => {
+              el.setAttribute("class", "alert alert-info");
+              el.style.position = "absolute";
+              el.style.left = "0px";
+              el.style.top = "0px";
+              el.style.margin = "10px";
+            });
+            floatingDivLeftTop.innerText = `last updated: ${new Date(lastLocation.timestampMs)}`;
           });
         }
       });
@@ -88,12 +124,6 @@
       }
       
       requestPositioning();
-      
-      if (new URLSearchParams(document.location.search).get("auto") == "1") {
-        setInterval(function() {
-          requestPositioning();
-        }, 12000);
-      }
     </script>
   </body>
 </html>
